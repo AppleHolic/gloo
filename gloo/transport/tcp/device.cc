@@ -96,7 +96,8 @@ static void lookupAddrForHostname(struct attr& attr) {
   hints.ai_family = attr.ai_family;
   hints.ai_socktype = SOCK_STREAM;
   struct addrinfo* result;
-  auto rv = getaddrinfo(attr.hostname.data(), nullptr, &hints, &result);
+	const char* port = getEnvPortByRank();
+  auto rv = getaddrinfo(attr.hostname.data(), port, &hints, &result);
   GLOO_ENFORCE_NE(rv, -1);
   struct addrinfo* rp;
   for (rp = result; rp != nullptr; rp = rp->ai_next) {
@@ -198,6 +199,36 @@ const std::string sockaddrToInterfaceName(const struct attr& attr) {
     Address(attr.ai_addr).str());
   freeifaddrs(ifap);
   return iface;
+}
+
+const const char* getEnvPortByRank() {
+	const char* env_rank = std::getenv("RANK");
+	GLOO_ENFORCE(
+		env_rank != nullptr,
+		"Environment 'RANK' must setup before call it",
+		"");
+	// convert type of rank
+	int rank;
+	try {
+		rank = std::stoi(std::string(env_rank));
+	} catch ( std::invalid_argument ia ) {
+		GLOO_ENFORCE(
+			false,
+			"Check Rank Environment",
+			"");
+	} catch ( std::out_of_range oor ) {
+		GLOO_ENFORCE(
+			false,
+			"Overflow Error at rank value",
+			"");
+	}
+	GLOO_ENFORCE(
+			rank >= 0 && rank < 10,
+			"Out of range RANK Value(0~9) : ",
+			env_rank);
+	// Get Port Environment
+	std::string port_env_name = "PORT" + std::string(env_rank);
+	return std::getenv(port_env_name.c_str());
 }
 
 Device::Device(const struct attr& attr)
