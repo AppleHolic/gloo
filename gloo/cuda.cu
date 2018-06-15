@@ -9,7 +9,25 @@
 
 #include "gloo/cuda.h"
 #include "gloo/cuda_private.h"
+
+#include <cuda.h>
+// Disable strict aliasing errors for CUDA 9.
+#if CUDA_VERSION >= 9000
+#ifdef __GNUC__
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic push
+#endif
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif // __GNUC__
+#endif // CUDA_VERSION >= 9000
 #include <cuda_fp16.h>
+#if CUDA_VERSION >= 9000
+#ifdef __GNUC__
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic pop
+#endif
+#endif // __GNUC__
+#endif // CUDA_VERSION >= 9000
 
 namespace gloo {
 
@@ -272,6 +290,7 @@ CudaHostPointer<T>::~CudaHostPointer() {
       CudaHostPointer<T>& src);
 
 INSTANTIATE_COPY_ASYNC(int8_t);
+INSTANTIATE_COPY_ASYNC(uint8_t);
 INSTANTIATE_COPY_ASYNC(int32_t);
 INSTANTIATE_COPY_ASYNC(int64_t);
 INSTANTIATE_COPY_ASYNC(uint64_t);
@@ -332,6 +351,8 @@ static inline int cudaGetBlocks(const int N) {
 
 DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(int8_t, cudaSum, +);
 DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(int8_t, cudaProduct, *);
+DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(uint8_t, cudaSum, +);
+DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(uint8_t, cudaProduct, *);
 DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(int32_t, cudaSum, +);
 DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(int32_t, cudaProduct, *);
 DELEGATE_SIMPLE_CUDA_BINARY_OPERATOR(int64_t, cudaSum, +);
@@ -392,6 +413,8 @@ DELEGATE_HALF_PRECISION_CUDA_BINARY_OPERATOR(cudaProduct, *);
 
 DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(int8_t, cudaMin, <);
 DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(int8_t, cudaMax, >);
+DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(uint8_t, cudaMin, <);
+DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(uint8_t, cudaMax, >);
 DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(int32_t, cudaMin, <);
 DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(int32_t, cudaMax, >);
 DELEGATE_SIMPLE_CUDA_BINARY_COMPARE(int64_t, cudaMin, <);

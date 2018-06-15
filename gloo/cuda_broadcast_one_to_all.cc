@@ -81,7 +81,12 @@ CudaBroadcastOneToAll<T, W>::CudaBroadcastOneToAll(
   // Setup local broadcast if needed
   if (devicePtrs_.size() > 1) {
     localBroadcastOp_ =
-      cudaDeviceBroadcast(streams_, devicePtrs_, devicePtrs_[0], 0, count_);
+      cudaDeviceBroadcast(
+          streams_,
+          devicePtrs_,
+          devicePtrs_[rootPointerRank],
+          0,
+          count_);
   }
 }
 
@@ -190,6 +195,7 @@ template class CudaBroadcastOneToAll<T, CudaDeviceWorkspace<T> >;
 
 
 INSTANTIATE_TEMPLATE(int8_t);
+INSTANTIATE_TEMPLATE(uint8_t);
 INSTANTIATE_TEMPLATE(int32_t);
 INSTANTIATE_TEMPLATE(int64_t);
 INSTANTIATE_TEMPLATE(uint64_t);

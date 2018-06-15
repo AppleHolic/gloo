@@ -36,6 +36,16 @@ class NCCLContext {
     NCCL_CHECK(ncclCommInitAll(comms.data(), devices.size(), devices.data()));
   }
   ~NCCLContext() {
+    /*
+     * TODO(T30279827) Temporarily disable calling ncclCommDestroy
+     * Calling ncclCommDestroy while program exiting is undefined
+     * according to nvidia, and lead to segfault in NCCL 2
+     * (whether it is called before or after the CUDA runtime destructor).
+     * Temporarily disable it in destructor to avoid segfault.
+     * Following up with Nvidia for long term solution.
+     */
+
+    /*
     for (auto i = 0; i < devices.size(); ++i) {
       CudaDeviceScope scope(devices[i]);
       {
@@ -44,6 +54,7 @@ class NCCLContext {
         ncclCommDestroy(comms[i]);
       }
     }
+    */
   }
 
   // Instances cannot be copied or copy-assigned
@@ -125,6 +136,12 @@ class ncclTypeWrapper;
 
 template <>
 class ncclTypeWrapper<int8_t> {
+ public:
+  static const ncclDataType_t type = ncclChar;
+};
+
+template <>
+class ncclTypeWrapper<uint8_t> {
  public:
   static const ncclDataType_t type = ncclChar;
 };
@@ -332,6 +349,7 @@ template class BroadcastOp<T>;                                          \
 template class AllgatherOp<T>;
 
 DEFINE_NCCL_TYPES_AND_OPS(int8_t);
+DEFINE_NCCL_TYPES_AND_OPS(uint8_t);
 DEFINE_NCCL_TYPES_AND_OPS(int32_t);
 DEFINE_NCCL_TYPES_AND_OPS(int64_t);
 DEFINE_NCCL_TYPES_AND_OPS(uint64_t);
