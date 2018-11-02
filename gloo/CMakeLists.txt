@@ -7,26 +7,39 @@ set(GLOO_HDRS)
 # Compiled sources in root directory
 list(APPEND GLOO_SRCS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allgather.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_local.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/context.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/gather.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/reduce.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/scatter.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/types.cc"
   )
 
 list(APPEND GLOO_HDRS
   "${CMAKE_CURRENT_SOURCE_DIR}/algorithm.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allgather.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allgather_ring.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_halving_doubling.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_bcube.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_halving_doubling.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_local.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_ring.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/allreduce_ring_chunked.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/barrier.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/barrier_all_to_all.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/barrier_all_to_one.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/broadcast.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/broadcast_one_to_all.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/reduce_scatter.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/context.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/gather.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/math.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/pairwise_exchange.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/reduce.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/reduce_scatter.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/scatter.h"
   "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
   )
 
@@ -111,7 +124,7 @@ if(GLOO_INSTALL)
     install(TARGETS gloo_cuda EXPORT GlooTargets
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
   endif()
-  install(FILES ${CMAKE_BINARY_DIR}/gloo/config.h
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/gloo)
   foreach(HEADER ${GLOO_HDRS})
     string(REGEX MATCH "(.*)[/\\]" DIR ${HEADER})

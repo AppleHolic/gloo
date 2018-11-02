@@ -122,7 +122,11 @@ class BuilderHelpers {
       return std::all_of(inputs.begin(), inputs.end(), [](const T* ptr) {
         cudaPointerAttributes attr;
         auto rv = cudaPointerGetAttributes(&attr, ptr);
-        return rv == cudaSuccess && attr.memoryType == cudaMemoryTypeDevice;
+        #if CUDA_VERSION >= 10000
+          return rv == cudaSuccess && attr.type == cudaMemoryTypeDevice;
+        #else
+          return rv == cudaSuccess && attr.memoryType == cudaMemoryTypeDevice;
+        #endif
       });
     }
 };
@@ -203,6 +207,10 @@ template <typename T>
 class CudaHostPointer {
  public:
   static CudaHostPointer<T> alloc(size_t count);
+
+  static CudaHostPointer<T> create(T* ptr, size_t count) {
+    return CudaHostPointer<T>(ptr, count, false);
+  }
 
   CudaHostPointer(CudaHostPointer&&) noexcept;
   ~CudaHostPointer();

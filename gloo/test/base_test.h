@@ -77,10 +77,14 @@ class BaseTest : public ::testing::Test {
     }
   }
 
-  void spawn(int size, std::function<void(std::shared_ptr<Context>)> fn) {
+  void spawn(
+      int size,
+      std::function<void(std::shared_ptr<Context>)> fn,
+      int base = 2) {
     Barrier barrier(size);
     spawnThreads(size, [&](int rank) {
-      auto context = std::make_shared<::gloo::rendezvous::Context>(rank, size);
+      auto context =
+          std::make_shared<::gloo::rendezvous::Context>(rank, size, base);
       if (size > 1) {
         context->connectFullMesh(*store_, device_);
       }
@@ -132,6 +136,14 @@ class Fixture {
     }
   }
 
+  void clear() {
+    for (auto i = 0; i < srcs.size(); i++) {
+      for (auto j = 0; j < count; j++) {
+        srcs[i][j] = 0;
+      }
+    }
+  }
+
   void checkBroadcastResult(Fixture<T>& fixture, int root, int rootPointer) {
     // Expected is set to the expected value at ptr[0]
     const auto expected = root * fixture.srcs.size() + rootPointer;
@@ -166,6 +178,10 @@ class Fixture {
             expected - srcs[i][j]);
       }
     }
+  }
+
+  T* getPointer() const {
+    return srcs.front().get();
   }
 
   std::vector<T*> getPointers() const {

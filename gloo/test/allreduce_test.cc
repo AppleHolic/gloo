@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "gloo/allreduce.h"
 #include "gloo/allreduce_bcube.h"
 #include "gloo/allreduce_halving_doubling.h"
 #include "gloo/allreduce_ring.h"
@@ -148,11 +149,8 @@ TEST_P(AllreduceTest, SinglePointer) {
   auto fn = std::get<2>(GetParam());
   auto base = std::get<3>(GetParam());
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context = std::make_shared<::gloo::rendezvous::Context>(
-        contextRank, contextSize, base);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
     for (int i = 0; i < dataSize; i++) {
@@ -165,7 +163,7 @@ TEST_P(AllreduceTest, SinglePointer) {
     for (int i = 0; i < dataSize; i++) {
       ASSERT_EQ(expected, ptr[i]) << "Mismatch at index " << i;
     }
-  });
+  }, base);
 }
 
 TEST_F(AllreduceTest, MultipleAlgorithms) {
@@ -176,11 +174,8 @@ TEST_F(AllreduceTest, MultipleAlgorithms) {
               allreduceHalvingDoubling,
               allreduceBcube};
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-        std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float>(dataSize);
     auto* ptr = buffer.data();
     for (const auto& fn : fns) {
@@ -215,11 +210,8 @@ TEST_F(AllreduceTestHP, HalfPrecisionTest) {
   auto fns = {
       allreduceRingHP, allreduceRingChunkedHP, allreduceHalvingDoublingHP};
 
-  spawnThreads(contextSize, [&](int contextRank) {
-    auto context =
-        std::make_shared<::gloo::rendezvous::Context>(contextRank, contextSize);
-    context->connectFullMesh(*store_, device_);
-
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    const auto contextRank = context->rank;
     auto buffer = newBuffer<float16>(dataSize);
     auto* ptr = buffer.data();
     for (const auto& fn : fns) {
@@ -302,6 +294,66 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(std::vector<int>({1, 64, 1000})),
         ::testing::Values(allreduceBcube),
         ::testing::Values(4)));
+
+using NewParam = std::tuple<int, int, int, bool>;
+
+class AllreduceNewTest : public BaseTest,
+                         public ::testing::WithParamInterface<NewParam> {};
+
+TEST_P(AllreduceNewTest, Default) {
+  auto contextSize = std::get<0>(GetParam());
+  auto numPointers = std::get<1>(GetParam());
+  auto dataSize = std::get<2>(GetParam());
+  auto inPlace = std::get<3>(GetParam());
+
+  spawn(contextSize, [&](std::shared_ptr<Context> context) {
+    Fixture<uint64_t> inputs(context, numPointers, dataSize);
+    Fixture<uint64_t> outputs(context, numPointers, dataSize);
+
+    AllreduceOptions opts(context);
+    opts.setOutputs(outputs.getPointers(), dataSize);
+    if (inPlace) {
+      outputs.assignValues();
+    } else {
+      opts.setInputs(inputs.getPointers(), dataSize);
+      inputs.assignValues();
+      outputs.clear();
+    }
+
+    opts.setReduceFunction([](void* a, const void* b, const void* c, size_t n) {
+      auto ua = static_cast<uint64_t*>(a);
+      const auto ub = static_cast<const uint64_t*>(b);
+      const auto uc = static_cast<const uint64_t*>(c);
+      for (size_t i = 0; i < n; i++) {
+        ua[i] = ub[i] + uc[i];
+      }
+    });
+
+    // A small maximum segment size triggers code paths where we'll
+    // have a number of segments larger than the lower bound of
+    // twice the context size.
+    opts.setMaxSegmentSize(128);
+
+    allreduce(opts);
+
+    const auto stride = contextSize * numPointers;
+    const auto base = (stride * (stride - 1)) / 2;
+    const auto out = outputs.getPointers();
+    for (auto j = 0; j < dataSize; j++) {
+      ASSERT_EQ(j * stride * stride + base, out[0][j])
+          << "Mismatch at index " << j;
+    }
+  });
+}
+
+INSTANTIATE_TEST_CASE_P(
+    AllreduceNewDefault,
+    AllreduceNewTest,
+    ::testing::Combine(
+        ::testing::Values(2, 4, 7),
+        ::testing::Values(1, 2, 3),
+        ::testing::Values(1, 10, 100, 1000, 10000),
+        ::testing::Values(true, false)));
 
 } // namespace
 } // namespace test
